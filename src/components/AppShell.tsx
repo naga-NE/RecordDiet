@@ -2,10 +2,10 @@ import { Activity, BarChart3, Dumbbell, Utensils } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 
 const items = [
+  { to: '/charts', label: 'トップ', icon: BarChart3 },
   { to: '/body', label: '身体', icon: Activity },
   { to: '/meals', label: '食事', icon: Utensils },
   { to: '/workouts', label: '筋トレ', icon: Dumbbell },
-  { to: '/charts', label: 'グラフ', icon: BarChart3 },
 ]
 
 export function AppShell() {

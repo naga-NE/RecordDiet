@@ -26,6 +26,15 @@ test.beforeEach(async ({ page }) => {
   await clearLocalData(page)
 })
 
+test('トップ画面で体重とカロリーを重ね、PFCを円グラフで表示できる', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'グラフ' })).toBeVisible()
+  await page.getByRole('button', { name: 'カロリー' }).click()
+  await expect(page.getByRole('button', { name: '体重' })).toHaveClass(/active/)
+  await expect(page.getByRole('button', { name: 'カロリー' })).toHaveClass(/active/)
+  await expect(page.getByRole('heading', { name: 'PFCバランス' })).toBeVisible()
+})
+
 test('身体記録を保存し、リロード後も端末内に残る', async ({ page }) => {
   await page.goto('/#/body')
   await page.getByLabel('体重').fill('101.2')

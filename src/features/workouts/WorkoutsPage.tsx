@@ -1,16 +1,18 @@
-import { Copy, Dumbbell, Plus, Save, TimerReset, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Dumbbell, Plus, Save, TimerReset, Trash2, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { NumberField } from '../../components/NumberField'
 import { deleteWorkout, listExerciseCatalog, listWorkouts, saveExerciseCatalogItem, saveWorkout } from '../../lib/db'
-import { formatDate, formatTime, localDateKey } from '../../lib/date'
+import { formatDate, formatTime, localDateKey, shiftDate } from '../../lib/date'
 import { ensureSeedData } from '../../lib/seed'
+import { swipeDateHandlers } from '../../lib/swipe'
 import type { ExerciseCatalogItem, WorkoutExercise, WorkoutRecord, WorkoutSet } from '../../types/models'
 
 export function WorkoutsPage() {
   const [records,setRecords]=useState<WorkoutRecord[]>([])
   const [catalog,setCatalog]=useState<ExerciseCatalogItem[]>([])
   const [editing,setEditing]=useState<WorkoutRecord|null>(null)
+  const [date,setDate]=useState(localDateKey())
 
   async function refresh(){await ensureSeedData();setRecords((await listWorkouts()).sort((a,b)=>b.startedAt.localeCompare(a.startedAt)));setCatalog((await listExerciseCatalog()).sort((a,b)=>Number(b.favorite)-Number(a.favorite)||a.name.localeCompare(b.name)))}
   useEffect(()=>{void refresh()},[])
@@ -20,13 +22,18 @@ export function WorkoutsPage() {
 
   const totalSets=(w:WorkoutRecord)=>w.exercises.reduce((n,e)=>n+e.sets.length,0)
   const volume=(w:WorkoutRecord)=>w.exercises.reduce((n,e)=>n+e.sets.reduce((s,x)=>s+x.weightKg*x.reps,0),0)
+  const dayRecords=records.filter(record=>record.date===date)
+  const previousDay=()=>setDate(value=>shiftDate(value,-1))
+  const nextDay=()=>setDate(value=>value<localDateKey()?shiftDate(value,1):value)
+  const swipe=swipeDateHandlers(previousDay,nextDay)
 
   return <section>
     <header className="page-header"><div><p className="eyebrow">WORKOUT</p><h1>筋トレ</h1></div><button className="icon-button" onClick={newWorkout}><Plus size={22}/></button></header>
     <div className="quick-actions"><button className="card action-card" onClick={newWorkout}><Dumbbell/><span><b>トレーニング開始</b><small>セットごとにリアルタイム記録</small></span></button><button className="card action-card" onClick={copyLast} disabled={!records.length}><Copy/><span><b>前回をコピー</b><small>{records[0]?formatDate(records[0].date):'履歴なし'}</small></span></button></div>
 
-    <div className="section-title"><h2>履歴</h2><span>{records.length}件</span></div>
-    <div className="stack">{records.length===0?<div className="empty">まだ筋トレ記録がありません。</div>:records.map(r=><article className="card workout-history" key={r.id}><button className="history-main" onClick={()=>setEditing(r)}><div><strong>{formatDate(r.date)}</strong><small>{formatTime(r.startedAt)} · {r.exercises.map(e=>e.name).join('、')}</small></div><div className="metrics vertical"><b>{totalSets(r)} set</b><small>{Math.round(volume(r)).toLocaleString()} kg</small></div></button><button className="delete-inline" onClick={()=>void deleteWorkout(r.id).then(refresh)} aria-label="削除"><Trash2 size={17}/></button></article>)}</div>
+    <div className="date-pager" aria-label="筋トレ履歴の日付"><button onClick={previousDay} aria-label="前日"><ChevronLeft/></button><div><small>左右にスワイプ</small><strong>{formatDate(date)}</strong></div><button onClick={nextDay} disabled={date>=localDateKey()} aria-label="翌日"><ChevronRight/></button></div>
+    <div className="section-title"><h2>履歴</h2><span>{dayRecords.length}件</span></div>
+    <div className="stack swipe-history" {...swipe}>{dayRecords.length===0?<div className="empty">この日の筋トレ記録はありません。</div>:dayRecords.map(r=><article className="card workout-history" key={r.id}><button className="history-main" onClick={()=>setEditing(r)}><div><strong>{formatTime(r.startedAt)}</strong><small>{r.exercises.map(e=>e.name).join('、')}</small></div><div className="metrics vertical"><b>{totalSets(r)} set</b><small>{Math.round(volume(r)).toLocaleString()} kg</small></div></button><button className="delete-inline" onClick={()=>void deleteWorkout(r.id).then(refresh)} aria-label="削除"><Trash2 size={17}/></button></article>)}</div>
 
     {editing&&<WorkoutEditor
       initial={editing}

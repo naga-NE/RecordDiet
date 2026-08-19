@@ -5,6 +5,7 @@ import App from './App'
 import { enableNetworkLockdown } from './lib/networkLockdown'
 import { requestPersistentStorage } from './lib/storage'
 import './styles.css'
+import './enhancements.css'
 
 enableNetworkLockdown()
 void requestPersistentStorage()

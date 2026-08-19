@@ -20,3 +20,10 @@ export function dateDaysAgo(days: number) {
   d.setDate(d.getDate() - days)
   return localDateKey(d)
 }
+
+export function shiftDate(date: string, days: number) {
+  const [year, month, day] = date.split('-').map(Number)
+  const value = new Date(year, month - 1, day)
+  value.setDate(value.getDate() + days)
+  return localDateKey(value)
+}

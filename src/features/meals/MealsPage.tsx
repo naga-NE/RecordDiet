@@ -1,10 +1,11 @@
-import { Copy, Plus, Search, Star, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Copy, Plus, Search, Star, Trash2 } from 'lucide-react'
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Modal } from '../../components/Modal'
 import { deleteFood, deleteMeal, listFoods, listMeals, saveFood, saveMeal } from '../../lib/db'
-import { formatDate, formatTime, localDateKey } from '../../lib/date'
+import { formatDate, formatTime, localDateKey, shiftDate } from '../../lib/date'
 import { mealTotals, mealsTotals } from '../../lib/nutrition'
 import { ensureSeedData } from '../../lib/seed'
+import { swipeDateHandlers } from '../../lib/swipe'
 import type { FoodItem, MealItem, MealRecord, MealType } from '../../types/models'
 
 const mealLabels: Record<MealType, string> = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: '間食', other: '食事' }
@@ -30,6 +31,10 @@ export function MealsPage() {
   const dayTotals = useMemo(() => mealsTotals(dayMeals), [dayMeals])
   const filtered = useMemo(() => foods.filter(f => f.name.toLowerCase().includes(query.toLowerCase())), [foods, query])
   const selectedTotals = useMemo(() => mealsTotals(selected.length ? [{ id: 'draft', date, type, name: '', items: selected, createdAt: '' }] : []), [selected, date, type])
+  const mealGroups = (['breakfast','lunch','dinner','snack','other'] as MealType[]).map(groupType=>({type:groupType,meals:dayMeals.filter(meal=>meal.type===groupType)}))
+  const previousDay=()=>setDate(value=>shiftDate(value,-1))
+  const nextDay=()=>setDate(value=>value<localDateKey()?shiftDate(value,1):value)
+  const swipe=swipeDateHandlers(previousDay,nextDay)
 
   function addFood(food: FoodItem) {
     setSelected(items => {
@@ -64,11 +69,11 @@ export function MealsPage() {
   return <section>
     <header className="page-header"><div><p className="eyebrow">MEALS</p><h1>食事</h1></div><button className="icon-button" onClick={() => setFoodModal(true)} aria-label="食品を追加"><Plus size={22}/></button></header>
 
+    <div className="date-pager" aria-label="食事履歴の日付"><button onClick={previousDay} aria-label="前日"><ChevronLeft/></button><div><small>左右にスワイプ</small><strong>{formatDate(date)}</strong></div><button onClick={nextDay} disabled={date>=localDateKey()} aria-label="翌日"><ChevronRight/></button></div>
     <article className="card daily-total">
       <div><small>{formatDate(date)}の合計</small><strong>{Math.round(dayTotals.kcal)} <em>kcal</em></strong></div>
       <div className="pfc"><span>P <b>{dayTotals.protein.toFixed(1)}g</b></span><span>F <b>{dayTotals.fat.toFixed(1)}g</b></span><span>C <b>{dayTotals.carbs.toFixed(1)}g</b></span></div>
     </article>
-    <label className="date-input standalone"><input type="date" value={date} max={localDateKey()} onChange={e => setDate(e.target.value)} /></label>
 
     <div className="segmented meal-tabs">{(['breakfast','lunch','dinner','snack','other'] as MealType[]).map(t => <button key={t} className={type===t?'active':''} onClick={() => setType(t)}>{mealLabels[t]}</button>)}</div>
     <div className="search"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="食品を検索" /></div>
@@ -91,7 +96,7 @@ export function MealsPage() {
     </div>}
 
     <div className="section-title"><h2>{formatDate(date)}の記録</h2><span>{dayMeals.length}件</span></div>
-    <div className="stack">{dayMeals.length===0?<div className="empty">この日の食事記録はありません。</div>:dayMeals.map(meal=>{const n=mealTotals(meal);return <article className="card meal-history" key={meal.id}><div className="meal-history-head"><div><strong>{mealLabels[meal.type]}</strong><small>{formatTime(meal.createdAt)} · {meal.items.length}品</small></div><div><b>{Math.round(n.kcal)} kcal</b><button onClick={()=>void deleteMeal(meal.id)} aria-label="削除"><Trash2 size={16}/></button></div></div><p>{meal.items.map(i=>`${i.name}${i.amount!==1?` ×${i.amount}`:''}`).join('、')}</p><div className="mini-pfc">P {n.protein.toFixed(1)} / F {n.fat.toFixed(1)} / C {n.carbs.toFixed(1)}</div></article>})}</div>
+    <div className="meal-groups swipe-history" {...swipe}>{dayMeals.length===0?<div className="empty">この日の食事記録はありません。</div>:mealGroups.map(group=><section className="meal-group" key={group.type}><header><h3>{mealLabels[group.type]}</h3><span>{group.meals.length}件</span></header>{group.meals.length===0?<p className="meal-group-empty">記録なし</p>:<div className="stack">{group.meals.map(meal=>{const n=mealTotals(meal);return <article className="card meal-history" key={meal.id}><div className="meal-history-head"><div><strong>{meal.name}</strong><small>{formatTime(meal.createdAt)} · {meal.items.length}品</small></div><div><b>{Math.round(n.kcal)} kcal</b><button onClick={()=>void deleteMeal(meal.id).then(refresh)} aria-label="削除"><Trash2 size={16}/></button></div></div><p>{meal.items.map(i=>`${i.name}${i.amount!==1?` ×${i.amount}`:''}`).join('、')}</p><div className="mini-pfc">P {n.protein.toFixed(1)} / F {n.fat.toFixed(1)} / C {n.carbs.toFixed(1)}</div></article>})}</div>}</section>)}</div>
 
     {foodModal && <FoodEditor
       onClose={()=>setFoodModal(false)}
